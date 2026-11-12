@@ -12,6 +12,8 @@ It is **not** an online payment gateway. Money screens store cash / UPI / card /
 | Auth | JWT (SimpleJWT, refresh rotation + blacklist) |
 | Deploy config | Render (API) + Cloudflare Pages (SPA) + Supabase PostgreSQL |
 
+https://fitnesstracker-edt.pages.dev
+
 ## Documentation
 
 | Document | Contents |
