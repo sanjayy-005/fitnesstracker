@@ -223,7 +223,9 @@ SIMPLE_JWT = {
 # ---------------------------------------------------------------------------
 # CORS / CSRF (which websites may call this API)
 # ---------------------------------------------------------------------------
-CORS_ALLOWED_ORIGINS = env_list("CORS_ALLOWED_ORIGINS", "http://localhost:5173,http://127.0.0.1:5173")
+CORS_ALLOWED_ORIGINS = [
+    "https://fitnesstracker-edt.pages.dev",
+]
 CSRF_TRUSTED_ORIGINS = env_list("CSRF_TRUSTED_ORIGINS", "")
 
 # ---------------------------------------------------------------------------
