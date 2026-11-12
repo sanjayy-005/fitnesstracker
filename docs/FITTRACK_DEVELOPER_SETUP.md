@@ -257,10 +257,10 @@ There is **no** `pytest` / `manage.py test` suite in the repository at the time 
 
 Full steps: [FITTRACK_TECHNICAL_DOCUMENTATION.md](./FITTRACK_TECHNICAL_DOCUMENTATION.md) Chapter 12.
 
-1. Host MySQL 8 externally.
-2. Render blueprint: `render.yaml`, root `backend`, `build.sh` then gunicorn.
-3. Vercel: root directory `frontend`, `VITE_API_URL=https://<api-host>/api`.
-4. Set `CORS_ALLOWED_ORIGINS` to the Vercel origin.
-5. Set `SEED_DEMO_DATA=false` after first seed and change demo passwords.
+1. Create a Supabase project and choose its Session pooler connection details.
+2. Render blueprint: `render.yaml`, root `backend`, `build.sh` then gunicorn. Set `ALLOWED_HOSTS` to include the custom API hostname and enter the Supabase pooler values in `DB_HOST`, `DB_PORT`, `DB_USER`, and `DB_PASSWORD`; use `DB_NAME=postgres`, `DB_ENGINE=postgresql`, and `DB_SSLMODE=require`.
+3. Cloudflare Pages: connect the repository, set root directory to `frontend`, build command to `npm run build`, output directory to `dist`, and build variable `VITE_API_URL=https://api.<your-domain>/api`.
+4. In Cloudflare DNS, point the API subdomain to the Render service and configure your frontend domain for Pages. Set Render `CORS_ALLOWED_ORIGINS` to the exact frontend origin, such as `https://<your-domain>` (no trailing slash).
+5. Set `SEED_DEMO_DATA=false` after first seed and change demo passwords. Django migrations create the schema but do not transfer records from an existing MySQL database.
 
 Never commit `backend/.env` or `frontend/.env` (listed in `.gitignore`).

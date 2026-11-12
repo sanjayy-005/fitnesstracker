@@ -6,7 +6,7 @@ This document describes the architecture that is implemented in the repository. 
 
 ## 1. High-level system architecture
 
-FitTrack is a **split web application**: a React single-page app talks to a Django REST API. The API stores gym data in **MySQL**. Authentication uses **JWT** (access + refresh). Food photo analysis is optional and calls an **OpenAI-compatible vision LLM** (or a local mock).
+FitTrack is a **split web application**: a React single-page app talks to a Django REST API. The API stores gym data in a relational database: MySQL is the local-development default, and PostgreSQL is supported for Supabase hosting. Authentication uses **JWT** (access + refresh). Food photo analysis is optional and calls an **OpenAI-compatible vision LLM** (or a local mock).
 
 ```mermaid
 flowchart LR
@@ -21,7 +21,7 @@ flowchart LR
   end
 
   subgraph Data["Data"]
-    MYSQL["MySQL 8"]
+    DB["MySQL locally<br/>Supabase PostgreSQL when hosted"]
     BL["JWT blacklist tables"]
   end
 
@@ -32,12 +32,12 @@ flowchart LR
   SPA -->|"HTTPS JSON + JWT<br/>CORS"| DRF
   DRF --> JWT
   DRF --> APPS
-  APPS --> MYSQL
+  APPS --> DB
   JWT --> BL
   APPS -->|"multipart image<br/>when FOOD_AI_PROVIDER=openai_compatible"| LLM
 ```
 
-**In simple language:** the gym staff and members use a website. The website never talks to MySQL itself. It asks the Django API. The API checks who is logged in, applies role rules, then reads or writes the database. For a meal photo, the API shrinks the image, sends it to a vision model, validates the JSON, and only then lets the member save a meal.
+**In simple language:** the gym staff and members use a website. The website never talks to the database itself. It asks the Django API. The API checks who is logged in, applies role rules, then reads or writes the database. For a meal photo, the API shrinks the image, sends it to a vision model, validates the JSON, and only then lets the member save a meal.
 
 **Verified from:** `frontend/src/api/client.js`, `backend/config/settings.py`, `backend/config/urls.py`, `backend/nutrition/ai/registry.py`, `render.yaml`.
 
@@ -99,7 +99,7 @@ sequenceDiagram
   participant UI as React page
   participant AX as Axios client
   participant API as Django view
-  participant DB as MySQL
+  participant DB as Relational database
 
   U->>UI: Click / submit
   UI->>AX: api.get/post(...)
@@ -297,7 +297,7 @@ sequenceDiagram
   participant IMG as image_utils
   participant P as Provider mock or OpenAI-compatible
   participant LLM as External LLM
-  participant DB as MySQL
+  participant DB as Relational database
 
   M->>API: POST /nutrition/consent/
   M->>API: multipart image + meal_type + note
@@ -326,7 +326,7 @@ Photos are **not** stored as files after analysis (`FoodScan` has no `ImageField
 
 ```mermaid
 flowchart LR
-  subgraph Vercel
+  subgraph CloudflarePages["Cloudflare Pages"]
     FE["Static SPA<br/>frontend/dist"]
   end
   subgraph Render
@@ -334,8 +334,8 @@ flowchart LR
     WN["WhiteNoise staticfiles"]
     DJ["Django"]
   end
-  subgraph ExternalDB["Managed MySQL"]
-    MY["MySQL 8<br/>not hosted by Render"]
+  subgraph ExternalDB["Supabase"]
+    MY["PostgreSQL<br/>Session pooler"]
   end
   User --> FE
   FE -->|"VITE_API_URL .../api"| Gunicorn
@@ -344,9 +344,9 @@ flowchart LR
   DJ --> MY
 ```
 
-**Verified from:** `render.yaml` (Python 3.12.7, `bash build.sh`, health `/api/health/`), `backend/build.sh` (collectstatic, migrate, optional `seed_data`), `frontend/vercel.json` (SPA rewrite to `index.html`).
+**Verified from:** `render.yaml` (Python 3.12.7, `bash build.sh`, health `/api/health/`), `backend/build.sh` (collectstatic, migrate, optional `seed_data`), Cloudflare Pages build settings and `frontend/public/_redirects` (SPA fallback to `index.html`).
 
-Render does **not** provide MySQL in this blueprint. Operators must supply `DB_*` for an external host. SSL CA defaults to `/etc/ssl/certs/ca-certificates.crt` on Render.
+The Render blueprint uses Supabase PostgreSQL through its Session pooler with SSL required. Operators provide the pooler `DB_*` credentials. Local development continues to default to MySQL.
 
 Default production food AI in `render.yaml` is `FOOD_AI_PROVIDER=mock` unless an operator sets a real key.
 
@@ -356,10 +356,12 @@ Default production food AI in `render.yaml` is `FOOD_AI_PROVIDER=mock` unless an
 
 | Service | Required? | Where configured |
 |---|---|---|
-| MySQL | Yes (unless `DB_ENGINE=sqlite` for experiments) | `DB_*` |
+| Supabase PostgreSQL | Hosted deployment | `DB_ENGINE=postgresql`, `DB_*`, `DB_SSLMODE=require` |
+| MySQL | Local-development default | `DB_ENGINE=mysql`, `DB_*` |
 | Vision LLM | No (mock works) | `FOOD_AI_*` |
 | Render | Optional hosting | `render.yaml` |
-| Vercel | Optional hosting | `frontend/vercel.json` |
+| Cloudflare Pages | Recommended SPA hosting | Pages build settings, `frontend/public/_redirects` |
+| Vercel | Optional alternative SPA hosting | `frontend/vercel.json` |
 
 There is **no** Stripe, Razorpay, or other payment processor in the codebase. Payments are staff-entered records.
 

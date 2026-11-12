@@ -2,7 +2,7 @@
 
 Honest inventory of what exists in the repository versus what does not. This is not a marketing list.
 
-Inspected: Django apps under `backend/`, React app under `frontend/src/`, `render.yaml`, `frontend/vercel.json`, `backend/build.sh`, `README.md`, `.env.example` files. Automated tests were **not** found. Production deploy status of any live URL was **not** verified from this repository.
+Inspected: Django apps under `backend/`, React app under `frontend/src/`, `render.yaml`, `frontend/public/_redirects`, `frontend/vercel.json`, `backend/build.sh`, `README.md`, `.env.example` files. Automated tests were **not** found. Production deploy status of any live URL was **not** verified from this repository.
 
 ---
 
@@ -29,7 +29,7 @@ Inspected: Django apps under `backend/`, React app under `frontend/src/`, `rende
 | Mock vision provider | Implemented | `nutrition/ai/mock_provider.py` |
 | OpenAI-compatible vision provider | Implemented | `nutrition/ai/openai_compatible.py` |
 | Demo seed data including member login | Implemented | `seed_data.py` |
-| Render + Vercel config files | Implemented | `render.yaml`, `vercel.json` |
+| Render API + Cloudflare Pages SPA config | Implemented | `render.yaml`, Pages build settings, `frontend/public/_redirects` |
 | Django admin for core gym models | Implemented | `accounts`, `members`, `trainers`, `plans`, `payments`, `attendance` `admin.py` |
 
 ---
@@ -60,7 +60,7 @@ Inspected: Django apps under `backend/`, React app under `frontend/src/`, `rende
 - Staff UI to review other members’ food logs
 - Traditional computer-vision models (YOLO, custom CNN) — nutrition uses an LLM or mock
 - USDA / IFCT nutrition lookup tables
-- Automated test suite and CI/CD pipelines beyond Render/Vercel build commands
+- Automated test suite and CI/CD pipelines beyond hosting build commands
 - httpOnly cookie auth
 - Multi-gym / multi-tenant
 
@@ -106,4 +106,4 @@ Member self-service portal and AI calorie tracking are **already started** (port
 
 ## 6. Current implementation status (one paragraph)
 
-FitTrack is a working gym operations SPA + REST API: members, trainers, plans, membership sales/renewals, desk payment records, attendance, role-based dashboards, a member portal, and an optional vision-LLM food log with consent and human confirmation. Payments are bookkeeping, not a payment processor. Nutrition accuracy depends on the configured model. Automated tests and staff nutrition UI are absent. Deployment files exist for Render (API) and Vercel (frontend) with external MySQL.
+FitTrack is a working gym operations SPA + REST API: members, trainers, plans, membership sales/renewals, desk payment records, attendance, role-based dashboards, a member portal, and an optional vision-LLM food log with consent and human confirmation. Payments are bookkeeping, not a payment processor. Nutrition accuracy depends on the configured model. Automated tests and staff nutrition UI are absent. Deployment support is configured for Render (API), Cloudflare Pages (frontend), and Supabase PostgreSQL; local development retains MySQL support. A Vercel config remains as an optional frontend alternative.

@@ -76,11 +76,13 @@ Only packages and services referenced by the repo are listed.
 | Django 5.2 | Web framework | ORM, admin, settings, management commands | `requirements.txt` `Django>=5.2,<5.3` |
 | Django REST Framework | HTTP API | ViewSets, serializers, permissions | all `views.py` |
 | SimpleJWT | JSON Web Tokens | Login without server sessions for the SPA | `djangorestframework-simplejwt`, blacklist app |
-| django-cors-headers | CORS | Allow the Vite/Vercel origin to call the API | `CorsMiddleware` |
+| django-cors-headers | CORS | Allow the deployed frontend origin to call the API | `CorsMiddleware` |
 | django-filter | Query filters | Member status, payments, attendance | `filters.py` modules |
-| MySQL 8 | Relational database | Durable gym records | `DB_ENGINE=mysql` |
-| PyMySQL | Pure-Python MySQL driver | Installs without compiling `mysqlclient` | `settings.py` `install_as_MySQLdb()` |
-| cryptography | TLS extras | Used with PyMySQL SSL options | `requirements.txt` |
+| MySQL 8 | Relational database | Local development default | `DB_ENGINE=mysql` |
+| PostgreSQL | Relational database | Hosted database; Supabase compatible | `DB_ENGINE=postgresql` |
+| PyMySQL | Pure-Python MySQL driver | Installs without compiling `mysqlclient` | MySQL branch in `settings.py` |
+| psycopg | PostgreSQL driver | Django PostgreSQL backend | `requirements.txt` |
+| cryptography | TLS extras | Used with MySQL SSL options | `requirements.txt` |
 | WhiteNoise | Static files | Serve Django admin static on Render | middleware + `STORAGES` |
 | Gunicorn | WSGI server | Production process | `render.yaml` start command |
 | python-dotenv | `.env` loader | Local secrets | `load_dotenv` |
@@ -107,9 +109,9 @@ There is **no** Redux, React Query, or TypeScript in `package.json`.
 | Piece | Role | Evidence |
 |---|---|---|
 | Render | Host Django | `render.yaml`, `backend/build.sh` |
-| Vercel | Host SPA | `frontend/vercel.json` |
+| Cloudflare Pages | Host SPA | `frontend/public/_redirects`, Pages build settings |
 | Environment variables | Secrets and hosts | `.env.example` files |
-| External MySQL | Data | Blueprint comments: Render has no MySQL |
+| Supabase PostgreSQL | Hosted data | `DB_ENGINE=postgresql`; Render environment variables |
 
 Optional vision hosts (operator-configured, not hard-coded vendors in Python): any OpenAI-compatible `/v1/chat/completions` with image content. Defaults in `.env.example` point at Hugging Face’s router URL and model id `Qwen/Qwen2.5-VL-7B-Instruct`.
 
@@ -124,7 +126,7 @@ See **[FITTRACK_ARCHITECTURE.md](./FITTRACK_ARCHITECTURE.md)** for full Mermaid 
 3. JWT login / refresh / logout  
 4. ER diagram  
 5. Membership, check-in, and food-scan workflows  
-6. Render + Vercel deploy
+6. Render + Cloudflare Pages deploy
 
 **Summary in simple language:** the browser runs React. React calls `/api/...` with a Bearer token. Django checks the token, checks the role, then uses the ORM. Money is `Decimal`. Food photos are resized, sent to an LLM (or mock), never saved as files, then confirmed into meal rows.
 
@@ -238,7 +240,7 @@ How apps communicate: membership create imports `payments.models.Payment`; dashb
 
 # Chapter 5 – Database Documentation
 
-Engine: MySQL (utf8mb4, `STRICT_TRANS_TABLES`) or optional SQLite. Default PK: `BigAutoField`.
+Engine: MySQL (utf8mb4, `STRICT_TRANS_TABLES`) for local development, PostgreSQL for Supabase hosting, or optional SQLite. Default PK: `BigAutoField`.
 
 Django table names = `{app}_{model}` lowercase.
 
@@ -560,7 +562,7 @@ Follow **[FITTRACK_DEVELOPER_SETUP.md](./FITTRACK_DEVELOPER_SETUP.md)** (command
 
 Short path:
 
-1. Python 3.10+, Node 18+, MySQL 8.  
+1. Python 3.10+, Node 18+, and MySQL 8 for local development.
 2. `CREATE DATABASE fittrack ... utf8mb4`.  
 3. `backend`: venv, `pip install -r requirements.txt`, copy `.env.example`, `migrate`, `seed_data`, `runserver`.  
 4. `frontend`: copy `.env.example`, `npm install`, `npm run dev`.  
@@ -578,17 +580,19 @@ Placeholder env only — never commit real `FOOD_AI_API_KEY` or `SECRET_KEY`.
 
 `build.sh`: pip install, `collectstatic`, `migrate`, optional `seed_data` if `SEED_DEMO_DATA=true`.
 
-MySQL: operator fills `DB_NAME`, `DB_USER`, `DB_PASSWORD`, `DB_HOST`. Default `DB_SSL_CA=/etc/ssl/certs/ca-certificates.crt`.
+Supabase PostgreSQL: create a Supabase project and use its **Session pooler** connection details in Render (`DB_HOST`, `DB_PORT`, `DB_USER`, `DB_PASSWORD`; `DB_NAME=postgres`). Set `DB_ENGINE=postgresql` and `DB_SSLMODE=require`. Use the connection string values shown by Supabase rather than guessing the pooler username or host. The Render blueprint has these settings ready to fill.
 
-## Frontend (Vercel)
+The Render build runs Django migrations against the configured database. This creates a fresh schema; it does not copy existing records from a MySQL database. If you already have data, plan a separate PostgreSQL data migration before switching production traffic.
 
-`frontend/vercel.json`: Vite, `npm run build`, output `dist`, SPA rewrite `/(.*) → /index.html`.
+## Frontend (Cloudflare Pages)
 
-Env: `VITE_API_URL=https://<render-host>/api` (no trailing slash).
+Connect the repository to Cloudflare Pages with root directory `frontend`, build command `npm run build`, and output directory `dist`. `frontend/public/_redirects` supplies the SPA fallback so direct navigation to React routes serves `index.html`.
+
+Build variable: `VITE_API_URL=https://api.<your-domain>/api` (no trailing slash). It is embedded at build time, so redeploy after changing it.
 
 ## CORS / CSRF
 
-After Vercel URL exists, set Render `CORS_ALLOWED_ORIGINS` to that origin and `CSRF_TRUSTED_ORIGINS` as needed (typically the API HTTPS origin). `ALLOWED_HOSTS` also receives `RENDER_EXTERNAL_HOSTNAME` automatically.
+Use Cloudflare DNS for both hostnames. Map the frontend domain to Pages and create an API subdomain pointing to the Render service (start with DNS-only proxy mode unless your hosting setup explicitly supports Cloudflare proxying). In Render, set `ALLOWED_HOSTS` to include the API hostname; `RENDER_EXTERNAL_HOSTNAME` is also allowed automatically. Set `CORS_ALLOWED_ORIGINS` to the exact frontend origin, such as `https://example.com` (no trailing slash). Set `CSRF_TRUSTED_ORIGINS` only if a browser-based Django CSRF flow is used; the frontend API uses JWT bearer authentication.
 
 ## Production Django flags
 
@@ -600,7 +604,7 @@ WhiteNoise `CompressedStaticFilesStorage`. No media pipeline for meal photos.
 
 ## Troubleshooting (from README + config)
 
-Sleeping free Render dynos, missing CORS, wrong `VITE_API_URL`, missing SSL CA, demo passwords left enabled (`SEED_DEMO_DATA`).
+Sleeping free Render dynos, missing CORS, wrong `VITE_API_URL`, missing SSL CA, API host missing from `ALLOWED_HOSTS`, demo passwords left enabled (`SEED_DEMO_DATA`).
 
 Diagram: Architecture doc §8.
 
@@ -629,7 +633,7 @@ Diagram: Architecture doc §8.
 
 - JWT in **localStorage** (XSS).  
 - No Django `DEFAULT_THROTTLE_RATES` in settings.  
-- `raw_response` from the LLM is stored in MySQL (may contain prompt/image metadata depending on vendor).  
+- `raw_response` from the LLM is stored in the configured relational database (may contain prompt/image metadata depending on vendor).
 - No field-level encryption for PII.  
 - Demo passwords published.  
 - CSRF mainly relevant for cookie/admin; SPA uses Bearer.  
@@ -725,7 +729,7 @@ Member portal and AI calorie tracking are **in progress / present**, not future-
 | `backend/nutrition/ai/` | Prompts, schema, providers |
 | `frontend/src/api/` | All HTTP |
 | `frontend/src/App.jsx` | Routes |
-| `render.yaml` / `frontend/vercel.json` | Hosting |
+| `render.yaml` / Cloudflare Pages settings / `frontend/public/_redirects` | Hosting |
 
 ## Migrations
 

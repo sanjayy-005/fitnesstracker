@@ -103,22 +103,35 @@ TEMPLATES = [
 WSGI_APPLICATION = "config.wsgi.application"
 
 # ---------------------------------------------------------------------------
-# Database (MySQL by default)
+# Database (MySQL by default for local development; PostgreSQL is supported for hosting)
 # ---------------------------------------------------------------------------
-# We use PyMySQL as the MySQL driver because it installs on Windows without a
-# C compiler. Django expects the "mysqlclient" driver, so we make PyMySQL
-# pretend to be it. This is a very common and safe setup.
 DB_ENGINE = os.getenv("DB_ENGINE", "mysql").strip().lower()
 
 if DB_ENGINE == "sqlite":
-    # Optional: only for quick experiments without MySQL (set DB_ENGINE=sqlite).
     DATABASES = {
         "default": {
             "ENGINE": "django.db.backends.sqlite3",
             "NAME": BASE_DIR / "db.sqlite3",
         }
     }
-else:
+elif DB_ENGINE in ("postgres", "postgresql"):
+    DATABASES = {
+        "default": {
+            "ENGINE": "django.db.backends.postgresql",
+            "NAME": os.getenv("DB_NAME", "fittrack"),
+            "USER": os.getenv("DB_USER", ""),
+            "PASSWORD": os.getenv("DB_PASSWORD", ""),
+            "HOST": os.getenv("DB_HOST", "127.0.0.1"),
+            "PORT": os.getenv("DB_PORT", "5432"),
+            "CONN_MAX_AGE": 60,
+            "OPTIONS": {
+                "sslmode": os.getenv("DB_SSLMODE", "require"),
+            },
+        }
+    }
+elif DB_ENGINE == "mysql":
+    # PyMySQL installs on Windows without a C compiler and provides Django's
+    # expected MySQLdb interface.
     import pymysql
 
     pymysql.version_info = (2, 2, 1, "final", 0)
@@ -148,6 +161,10 @@ else:
         if not _ssl_ca_path.is_absolute():
             _ssl_ca_path = BASE_DIR / _ssl_ca_path  # relative paths are relative to the backend folder
         DATABASES["default"]["OPTIONS"]["ssl"] = {"ca": str(_ssl_ca_path)}
+else:
+    raise ImproperlyConfigured(
+        "DB_ENGINE must be one of: mysql, postgresql, postgres, or sqlite."
+    )
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 

@@ -8,9 +8,9 @@ It is **not** an online payment gateway. Money screens store cash / UPI / card /
 |---|---|
 | Frontend | React 18, Vite, Tailwind CSS, Recharts, React Router, Axios |
 | Backend | Python, Django 5.2, Django REST Framework |
-| Database | MySQL 8 (PyMySQL) |
+| Database | MySQL 8 locally; Supabase PostgreSQL for hosted deployment |
 | Auth | JWT (SimpleJWT, refresh rotation + blacklist) |
-| Deploy config | Render (API) + Vercel (SPA) + external MySQL |
+| Deploy config | Render (API) + Cloudflare Pages (SPA) + Supabase PostgreSQL |
 
 ## Documentation
 
@@ -115,6 +115,8 @@ Meal photos are analysed and **not stored** as files.
 
 ## Deploy
 
-Blueprint: `render.yaml` (Django on Render) + Vercel project with root `frontend` and `VITE_API_URL=https://<api>/api`. Host MySQL yourself (Render does not provide it in this blueprint). Full notes: technical documentation Chapter 12.
+Recommended setup: `render.yaml` (Django API on Render) + Cloudflare Pages (React SPA) + Supabase PostgreSQL. The backend supports PostgreSQL for hosting; local development can continue to use MySQL. For Cloudflare Pages, connect this repository, set the project root to `frontend`, build command to `npm run build`, output directory to `dist`, and build variable `VITE_API_URL=https://api.<your-domain>/api`. The Pages SPA fallback is in `frontend/public/_redirects`.
+
+Use Cloudflare DNS for your domain, with the frontend on the apex/www hostname and `api.<your-domain>` mapped to the Render service. Set the Render `ALLOWED_HOSTS` to include the API hostname and `CORS_ALLOWED_ORIGINS` to the exact frontend origin (for example `https://<your-domain>`). In Render, use the Supabase Session pooler connection information and keep `DB_SSLMODE=require`. See technical documentation Chapter 12 for deployment steps.
 
 Never commit `backend/.env` or `frontend/.env`.
