@@ -74,7 +74,6 @@ export const nutritionApi = {
     upload: (formData) =>
       unwrap(
         api.post("/nutrition/scans/", formData, {
-          headers: { "Content-Type": "multipart/form-data" },
           timeout: 120000,
         })
       ),

@@ -48,7 +48,6 @@ export const tokenStore = {
 const api = axios.create({
   baseURL: API_URL,
   timeout: 20000,
-  headers: { "Content-Type": "application/json" },
 });
 
 api.interceptors.request.use((config) => {

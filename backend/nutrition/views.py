@@ -46,12 +46,9 @@ class FoodScanViewSet(
 ):
     serializer_class = FoodScanSerializer
     permission_classes = [IsAuthenticated, RolePermission]
+    parser_classes = [JSONParser, MultiPartParser, FormParser]
     read_roles = STAFF_AND_MEMBER
     write_roles = STAFF_AND_MEMBER
-    def get_parsers(self):
-        if getattr(self, "action", None) == "create":
-            return [MultiPartParser(), FormParser()]
-        return [JSONParser()]
 
     def get_queryset(self):
         qs = FoodScan.objects.select_related("member")
