@@ -95,8 +95,6 @@ npm install
 npm run dev
 ```
 
-- API: http://127.0.0.1:8000/api/health/
-- App: http://localhost:5173
 
 ### Demo logins (`seed_data`)
 
